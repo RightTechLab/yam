@@ -439,11 +439,14 @@ async fn main() -> Result<(), io::Error> {
                             app.status_message = "Settings cancelled".into();
                         }
                         KeyCode::Tab => {
-                            if app.settings_tab == app::SettingsTab::Rpc {
-                                app.settings_tab = app::SettingsTab::Services;
-                            } else {
-                                app.settings_tab = app::SettingsTab::Rpc;
-                            }
+                            app.settings_tab = match app.settings_tab {
+                                app::SettingsTab::Rpc => app::SettingsTab::Services,
+                                app::SettingsTab::Services => {
+                                    app.load_bitcoin_conf();
+                                    app::SettingsTab::BitcoinConf
+                                }
+                                app::SettingsTab::BitcoinConf => app::SettingsTab::Rpc,
+                            };
                         }
                         _ => {
                             // Tab-specific key handlers
@@ -574,6 +577,107 @@ async fn main() -> Result<(), io::Error> {
                                         _ => {}
                                     }
                                 }
+                                app::SettingsTab::BitcoinConf => {
+                                    match key.code {
+                                        KeyCode::Up => {
+                                            if app.conf_cursor_y > 0 {
+                                                app.conf_cursor_y -= 1;
+                                                let line_len = app.conf_lines[app.conf_cursor_y].len();
+                                                if app.conf_cursor_x > line_len {
+                                                    app.conf_cursor_x = line_len;
+                                                }
+                                            }
+                                        }
+                                        KeyCode::Down => {
+                                            if app.conf_cursor_y < app.conf_lines.len() - 1 {
+                                                app.conf_cursor_y += 1;
+                                                let line_len = app.conf_lines[app.conf_cursor_y].len();
+                                                if app.conf_cursor_x > line_len {
+                                                    app.conf_cursor_x = line_len;
+                                                }
+                                            }
+                                        }
+                                        KeyCode::Left => {
+                                            if app.conf_cursor_x > 0 {
+                                                app.conf_cursor_x -= 1;
+                                            } else if app.conf_cursor_y > 0 {
+                                                app.conf_cursor_y -= 1;
+                                                app.conf_cursor_x = app.conf_lines[app.conf_cursor_y].len();
+                                            }
+                                        }
+                                        KeyCode::Right => {
+                                            let line_len = app.conf_lines[app.conf_cursor_y].len();
+                                            if app.conf_cursor_x < line_len {
+                                                app.conf_cursor_x += 1;
+                                            } else if app.conf_cursor_y < app.conf_lines.len() - 1 {
+                                                app.conf_cursor_y += 1;
+                                                app.conf_cursor_x = 0;
+                                            }
+                                        }
+                                        KeyCode::Home => {
+                                            app.conf_cursor_x = 0;
+                                        }
+                                        KeyCode::End => {
+                                            app.conf_cursor_x = app.conf_lines[app.conf_cursor_y].len();
+                                        }
+                                        KeyCode::Char('s') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                                            match app.save_bitcoin_conf() {
+                                                Ok(()) => {
+                                                    app.add_log("bitcoin.conf saved.".into());
+                                                    app.status_message = "bitcoin.conf saved!".into();
+                                                }
+                                                Err(e) => {
+                                                    app.add_log(format!("Failed to save bitcoin.conf: {}", e));
+                                                    app.status_message = format!("Save failed: {}", e);
+                                                }
+                                            }
+                                        }
+                                        KeyCode::Char(c) => {
+                                            app.conf_lines[app.conf_cursor_y].insert(app.conf_cursor_x, c);
+                                            app.conf_cursor_x += 1;
+                                            app.conf_dirty = true;
+                                        }
+                                        KeyCode::Backspace => {
+                                            if app.conf_cursor_x > 0 {
+                                                app.conf_lines[app.conf_cursor_y].remove(app.conf_cursor_x - 1);
+                                                app.conf_cursor_x -= 1;
+                                                app.conf_dirty = true;
+                                            } else if app.conf_cursor_y > 0 {
+                                                let removed = app.conf_lines.remove(app.conf_cursor_y);
+                                                app.conf_cursor_y -= 1;
+                                                app.conf_cursor_x = app.conf_lines[app.conf_cursor_y].len();
+                                                app.conf_lines[app.conf_cursor_y].push_str(&removed);
+                                                app.conf_dirty = true;
+                                            }
+                                        }
+                                        KeyCode::Delete => {
+                                            let line_len = app.conf_lines[app.conf_cursor_y].len();
+                                            if app.conf_cursor_x < line_len {
+                                                app.conf_lines[app.conf_cursor_y].remove(app.conf_cursor_x);
+                                                app.conf_dirty = true;
+                                            } else if app.conf_cursor_y < app.conf_lines.len() - 1 {
+                                                let next = app.conf_lines.remove(app.conf_cursor_y + 1);
+                                                app.conf_lines[app.conf_cursor_y].push_str(&next);
+                                                app.conf_dirty = true;
+                                            }
+                                        }
+                                        KeyCode::Enter => {
+                                            let rest = app.conf_lines[app.conf_cursor_y].split_off(app.conf_cursor_x);
+                                            app.conf_cursor_y += 1;
+                                            app.conf_lines.insert(app.conf_cursor_y, rest);
+                                            app.conf_cursor_x = 0;
+                                            app.conf_dirty = true;
+                                        }
+                                        _ => {}
+                                    }
+                                    // Keep scroll in sync with cursor
+                                    let visible_height = 15usize;
+                                    if app.conf_cursor_y < app.conf_scroll {
+                                        app.conf_scroll = app.conf_cursor_y;
+                                    } else if app.conf_cursor_y >= app.conf_scroll + visible_height {
+                                        app.conf_scroll = app.conf_cursor_y - visible_height + 1;
+                                    }
+                                }
                             }
                         }
                     }
@@ -608,105 +712,105 @@ async fn main() -> Result<(), io::Error> {
                     };
 
                     match key.code {
-                                KeyCode::Esc => {
-                                    app.mode = app::AppMode::Dashboard;
-                                }
-                                KeyCode::Backspace => {
-                                    app.playground_input.pop();
-                                    update_suggestions(&mut app);
-                                }
-                                KeyCode::Char(c) => {
-                                    app.playground_input.push(c);
-                                    update_suggestions(&mut app);
-                                }
-                                KeyCode::Tab => {
-                                    if !app.playground_suggestions.is_empty() {
-                                        if let Some(idx) = app.playground_suggestion_idx {
-                                            let suggestion = &app.playground_suggestions[idx];
-                                            let mut words: Vec<&str> = app.playground_input.split_whitespace().collect();
-                                            if !words.is_empty() {
-                                                words.pop();
-                                            }
-                                            
-                                            app.playground_input = words.join(" ");
-                                            if !app.playground_input.is_empty() {
-                                                app.playground_input.push(' ');
-                                            }
-                                            app.playground_input.push_str(suggestion);
-                                            app.playground_input.push(' ');
-                                            
-                                            app.playground_suggestions.clear();
-                                            app.playground_suggestion_idx = None;
-                                        }
+                        KeyCode::Esc => {
+                            app.mode = app::AppMode::Dashboard;
+                        }
+                        KeyCode::Backspace => {
+                            app.playground_input.pop();
+                            update_suggestions(&mut app);
+                        }
+                        KeyCode::Char(c) => {
+                            app.playground_input.push(c);
+                            update_suggestions(&mut app);
+                        }
+                        KeyCode::Tab => {
+                            if !app.playground_suggestions.is_empty() {
+                                if let Some(idx) = app.playground_suggestion_idx {
+                                    let suggestion = &app.playground_suggestions[idx];
+                                    let mut words: Vec<&str> = app.playground_input.split_whitespace().collect();
+                                    if !words.is_empty() {
+                                        words.pop();
                                     }
-                                }
-                                KeyCode::Char('l') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
-                                    app.playground_history.clear();
-                                    app.playground_scroll = 0;
-                                    app.playground_history.push("Playground cleared.".into());
-                                }
-                                KeyCode::Up if key.modifiers.contains(crossterm::event::KeyModifiers::SHIFT) => {
-                                    app.playground_scroll = app.playground_scroll.saturating_add(5);
-                                }
-                                KeyCode::Down if key.modifiers.contains(crossterm::event::KeyModifiers::SHIFT) => {
-                                    app.playground_scroll = app.playground_scroll.saturating_sub(5);
-                                }
-                                KeyCode::Up => {
-                                    if !app.playground_suggestions.is_empty() {
-                                        if let Some(idx) = app.playground_suggestion_idx {
-                                            let len = app.playground_suggestions.len();
-                                            app.playground_suggestion_idx = Some(if idx == 0 { len - 1 } else { idx - 1 });
-                                        }
+                                    
+                                    app.playground_input = words.join(" ");
+                                    if !app.playground_input.is_empty() {
+                                        app.playground_input.push(' ');
                                     }
+                                    app.playground_input.push_str(suggestion);
+                                    app.playground_input.push(' ');
+                                    
+                                    app.playground_suggestions.clear();
+                                    app.playground_suggestion_idx = None;
                                 }
-                                KeyCode::Down => {
-                                    if !app.playground_suggestions.is_empty() {
-                                        if let Some(idx) = app.playground_suggestion_idx {
-                                            app.playground_suggestion_idx = Some((idx + 1) % app.playground_suggestions.len());
-                                        }
-                                    }
-                                }
-                                KeyCode::Enter => {
-                                    if !app.playground_input.trim().is_empty() {
-                                        let cmd = app.playground_input.trim().to_string();
-                                        app.playground_input.clear();
-                                        app.playground_suggestions.clear();
-                                        app.playground_suggestion_idx = None;
-                                        app.playground_scroll = 0;
-
-                                        if cmd == "clear" {
-                                            app.playground_history.clear();
-                                            app.playground_history.push("Playground cleared.".into());
-                                        } else {
-                                            app.playground_history.push(format!("> {}", cmd));
-                                            
-                                            // Execute user command natively 
-                                            let parts: Vec<&str> = cmd.split_whitespace().collect();
-                                            let program = parts[0];
-                                            let args = &parts[1..];
-                                            
-                                            // Fire the async shell spawn 
-                                            let _ = tokio::process::Command::new(program)
-                                                .args(args)
-                                                .output()
-                                                .await
-                                                .map(|output| {
-                                                    if output.status.success() {
-                                                        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                                                        app.playground_history.push(stdout);
-                                                    } else {
-                                                        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                                                        app.playground_history.push(format!("Error: {}", stderr));
-                                                    }
-                                                })
-                                                .map_err(|e| {
-                                                    app.playground_history.push(format!("Error executing command: {}", e));
-                                                });
-                                        }
-                                    }
-                                }
-                                _ => {}
                             }
+                        }
+                        KeyCode::Char('l') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                            app.playground_history.clear();
+                            app.playground_scroll = 0;
+                            app.playground_history.push("Playground cleared.".into());
+                        }
+                        KeyCode::Up if key.modifiers.contains(crossterm::event::KeyModifiers::SHIFT) => {
+                            app.playground_scroll = app.playground_scroll.saturating_add(5);
+                        }
+                        KeyCode::Down if key.modifiers.contains(crossterm::event::KeyModifiers::SHIFT) => {
+                            app.playground_scroll = app.playground_scroll.saturating_sub(5);
+                        }
+                        KeyCode::Up => {
+                            if !app.playground_suggestions.is_empty() {
+                                if let Some(idx) = app.playground_suggestion_idx {
+                                    let len = app.playground_suggestions.len();
+                                    app.playground_suggestion_idx = Some(if idx == 0 { len - 1 } else { idx - 1 });
+                                }
+                            }
+                        }
+                        KeyCode::Down => {
+                            if !app.playground_suggestions.is_empty() {
+                                if let Some(idx) = app.playground_suggestion_idx {
+                                    app.playground_suggestion_idx = Some((idx + 1) % app.playground_suggestions.len());
+                                }
+                            }
+                        }
+                        KeyCode::Enter => {
+                            if !app.playground_input.trim().is_empty() {
+                                let cmd = app.playground_input.trim().to_string();
+                                app.playground_input.clear();
+                                app.playground_suggestions.clear();
+                                app.playground_suggestion_idx = None;
+                                app.playground_scroll = 0;
+
+                                if cmd == "clear" {
+                                    app.playground_history.clear();
+                                    app.playground_history.push("Playground cleared.".into());
+                                } else {
+                                    app.playground_history.push(format!("> {}", cmd));
+                                    
+                                    // Execute user command natively 
+                                    let parts: Vec<&str> = cmd.split_whitespace().collect();
+                                    let program = parts[0];
+                                    let args = &parts[1..];
+                                    
+                                    // Fire the async shell spawn 
+                                    let _ = tokio::process::Command::new(program)
+                                        .args(args)
+                                        .output()
+                                        .await
+                                        .map(|output| {
+                                            if output.status.success() {
+                                                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                                                app.playground_history.push(stdout);
+                                            } else {
+                                                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                                                app.playground_history.push(format!("Error: {}", stderr));
+                                            }
+                                        })
+                                        .map_err(|e| {
+                                            app.playground_history.push(format!("Error executing command: {}", e));
+                                        });
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             }
         }

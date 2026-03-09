@@ -13,6 +13,7 @@ pub enum SettingsTab {
     #[default]
     Rpc,
     Services,
+    BitcoinConf,
 }
 
 #[derive(Default)]
@@ -64,6 +65,14 @@ pub struct App {
     pub service_action_busy: bool,
     pub service_action_label: String,
     pub spinner_tick: usize,
+    
+    // Bitcoin.conf editor state
+    pub conf_lines: Vec<String>,
+    pub conf_cursor_x: usize,
+    pub conf_cursor_y: usize,
+    pub conf_scroll: usize,
+    pub conf_dirty: bool,
+    pub conf_path: String,
     
     // Playground state
     pub playground_input: String,
@@ -125,6 +134,13 @@ impl App {
             service_action_label: String::new(),
             spinner_tick: 0,
             
+            conf_lines: Vec::new(),
+            conf_cursor_x: 0,
+            conf_cursor_y: 0,
+            conf_scroll: 0,
+            conf_dirty: false,
+            conf_path: "/home/satoshi/.bitcoin/bitcoin.conf".into(),
+            
             playground_input: String::new(),
             playground_history: vec!["Welcome to Yam Playground!".into(), "Type command and press Enter (e.g. `bitcoin-cli -regtest getblockchaininfo`).".into()],
             
@@ -149,5 +165,34 @@ impl App {
         if self.logs.len() > 50 {
             self.logs.remove(0);
         }
+    }
+
+    pub fn load_bitcoin_conf(&mut self) {
+        match std::fs::read_to_string(&self.conf_path) {
+            Ok(content) => {
+                self.conf_lines = content.lines().map(|l| l.to_string()).collect();
+                if self.conf_lines.is_empty() {
+                    self.conf_lines.push(String::new());
+                }
+                self.conf_cursor_x = 0;
+                self.conf_cursor_y = 0;
+                self.conf_scroll = 0;
+                self.conf_dirty = false;
+            }
+            Err(e) => {
+                self.conf_lines = vec![format!("# Error loading {}: {}", self.conf_path, e)];
+                self.conf_cursor_x = 0;
+                self.conf_cursor_y = 0;
+                self.conf_scroll = 0;
+                self.conf_dirty = false;
+            }
+        }
+    }
+
+    pub fn save_bitcoin_conf(&mut self) -> Result<(), String> {
+        let content = self.conf_lines.join("\n") + "\n";
+        std::fs::write(&self.conf_path, content).map_err(|e| format!("{}", e))?;
+        self.conf_dirty = false;
+        Ok(())
     }
 }

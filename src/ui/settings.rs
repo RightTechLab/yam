@@ -50,8 +50,12 @@ pub fn render_settings(f: &mut Frame, app: &App) {
         .split(inner_area);
 
     // --- TABS ---
-    let tab_titles = vec![" RPC Connection ", " Manage Services "];
-    let selected_tab = if app.settings_tab == SettingsTab::Rpc { 0 } else { 1 };
+    let tab_titles = vec![" RPC Connection ", " Manage Services ", " Bitcoin.conf "];
+    let selected_tab = match app.settings_tab {
+        SettingsTab::Rpc => 0,
+        SettingsTab::Services => 1,
+        SettingsTab::BitcoinConf => 2,
+    };
 
     let tabs = Tabs::new(tab_titles)
         .block(Block::default().borders(Borders::BOTTOM))
@@ -182,6 +186,89 @@ pub fn render_settings(f: &mut Frame, app: &App) {
                     .alignment(ratatui::layout::Alignment::Center);
                 f.render_widget(svc_help, svc_chunks[7]);
             }
+        }
+        SettingsTab::BitcoinConf => {
+            let editor_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(5),    // Editor area
+                    Constraint::Length(1), // Help footer
+                ])
+                .split(chunks[1]);
+
+            let editor_area = editor_chunks[0];
+            let visible_height = editor_area.height.saturating_sub(2) as usize; // minus borders
+            let visible_width = editor_area.width.saturating_sub(7) as usize; // minus borders + line numbers
+
+            let dirty_marker = if app.conf_dirty { " * " } else { " " };
+            let title = format!(" {} {}", app.conf_path, dirty_marker);
+
+            let mut lines: Vec<Line> = Vec::new();
+            let end = (app.conf_scroll + visible_height).min(app.conf_lines.len());
+            for i in app.conf_scroll..end {
+                let line_num = format!("{:>3} ", i + 1);
+                let line_content = &app.conf_lines[i];
+                let is_comment = line_content.trim_start().starts_with('#');
+
+                if i == app.conf_cursor_y {
+                    // Cursor line: build character-by-character with cursor highlight
+                    let mut spans = vec![
+                        Span::styled(line_num, Style::default().fg(Color::DarkGray)),
+                    ];
+                    
+                    let base_style = if is_comment {
+                        Style::default().fg(Color::Green)
+                    } else {
+                        Style::default().fg(Color::White)
+                    };
+
+                    let chars: Vec<char> = line_content.chars().collect();
+                    // Before cursor
+                    if app.conf_cursor_x > 0 {
+                        let before: String = chars[..app.conf_cursor_x.min(chars.len())].iter().collect();
+                        spans.push(Span::styled(before, base_style));
+                    }
+                    // Cursor character
+                    let cursor_char = if app.conf_cursor_x < chars.len() {
+                        chars[app.conf_cursor_x].to_string()
+                    } else {
+                        " ".to_string()
+                    };
+                    spans.push(Span::styled(cursor_char, Style::default().fg(Color::Black).bg(Color::Yellow)));
+                    // After cursor
+                    if app.conf_cursor_x + 1 < chars.len() {
+                        let after: String = chars[app.conf_cursor_x + 1..].iter().collect();
+                        spans.push(Span::styled(after, base_style));
+                    }
+                    
+                    lines.push(Line::from(spans));
+                } else {
+                    let content_style = if is_comment {
+                        Style::default().fg(Color::Green)
+                    } else {
+                        Style::default().fg(Color::White)
+                    };
+                    lines.push(Line::from(vec![
+                        Span::styled(line_num, Style::default().fg(Color::DarkGray)),
+                        Span::styled(line_content.as_str(), content_style),
+                    ]));
+                }
+            }
+
+            let editor = Paragraph::new(lines)
+                .block(Block::default().title(title).borders(Borders::ALL).style(Style::default().fg(Color::Cyan)));
+            f.render_widget(editor, editor_area);
+
+            let status = format!(
+                " Ln {}, Col {} | {} lines | [Ctrl+S] Save | [Tab] Switch Tab | [Esc] Close ",
+                app.conf_cursor_y + 1,
+                app.conf_cursor_x + 1,
+                app.conf_lines.len(),
+            );
+            let help = Paragraph::new(status)
+                .style(Style::default().fg(Color::DarkGray))
+                .alignment(ratatui::layout::Alignment::Center);
+            f.render_widget(help, editor_chunks[1]);
         }
     }
 }
