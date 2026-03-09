@@ -14,7 +14,7 @@ impl RpcClient {
         let cookie_path: PathBuf = ["/", "usr", "local", "var", "lib", "bitcoin", ".cookie"].iter().collect();
         
         #[cfg(target_os = "linux")]
-        let cookie_path: PathBuf = [Some.as_str(), ".bitcoin", ".cookie"].iter().collect();
+        let cookie_path: PathBuf = [_home.as_str(), ".bitcoin", ".cookie"].iter().collect();
 
         // Fallback or explicit override can be implemented here later
         let url = "http://127.0.0.1:18443"; // Default regtest RPC port
