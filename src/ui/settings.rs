@@ -119,6 +119,9 @@ pub fn render_settings(f: &mut Frame, app: &App) {
                     Constraint::Length(1), // Top padding
                     Constraint::Length(1), // Bitcoin Row
                     Constraint::Length(1), // Tor Row
+                    Constraint::Length(1), // Electrs Row
+                    Constraint::Length(1), // I2P Row
+                    Constraint::Length(1), // BTC Explorer Row
                     Constraint::Min(1),    // Bottom space
                     Constraint::Length(1), // Help Footer
                 ])
@@ -127,7 +130,7 @@ pub fn render_settings(f: &mut Frame, app: &App) {
             let render_row = |f: &mut Frame, area: Rect, label: &str, service_idx: usize, app: &App| {
                 let row_chunks = Layout::default()
                     .direction(Direction::Horizontal)
-                    .constraints([Constraint::Length(12), Constraint::Min(1)])
+                    .constraints([Constraint::Length(16), Constraint::Min(1)])
                     .split(area);
 
                 f.render_widget(Paragraph::new(label).style(Style::default().fg(Color::Cyan)), row_chunks[0]);
@@ -155,11 +158,14 @@ pub fn render_settings(f: &mut Frame, app: &App) {
 
             render_row(f, svc_chunks[1], "Bitcoin:", 0, app);
             render_row(f, svc_chunks[2], "Tor:", 1, app);
+            render_row(f, svc_chunks[3], "Electrs:", 2, app);
+            render_row(f, svc_chunks[4], "I2P:", 3, app);
+            render_row(f, svc_chunks[5], "BTC Explorer:", 4, app);
 
-            let svc_help = Paragraph::new(" [Up/Down] Select Service  |  [Left/Right] Select Action  |  [Enter] Execute  |  [Tab] Back to RPC  |  [Esc] Close ")
+            let svc_help = Paragraph::new(" [Up/Down] Select Service  |  [Left/Right] Select Action  |  [Enter]  |  [Esc] Close ")
                 .style(Style::default().fg(Color::DarkGray))
                 .alignment(ratatui::layout::Alignment::Center);
-            f.render_widget(svc_help, svc_chunks[4]);
+            f.render_widget(svc_help, svc_chunks[7]);
         }
     }
 }

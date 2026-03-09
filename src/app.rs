@@ -97,7 +97,7 @@ impl App {
             node_hostname: "Unknown".into(),
             
             local_ip: "Determining...".into(),
-            node_version: "30.2".into(),
+            node_version: "Unknown".into(),
             node_network: "Unknown".into(),
             tor_onion: "Unknown".into(),
             i2p_addr: "Disabled".into(),

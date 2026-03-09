@@ -428,9 +428,15 @@ async fn main() -> Result<(), io::Error> {
                                 }
                                 app::SettingsTab::Services => {
                                     match key.code {
-                                        KeyCode::Up | KeyCode::Down => {
-                                            // Toggle between 0 (Bitcoin) and 1 (Tor)
-                                            app.selected_service_index = (app.selected_service_index + 1) % 2;
+                                        KeyCode::Up => {
+                                            if app.selected_service_index == 0 {
+                                                app.selected_service_index = 4;
+                                            } else {
+                                                app.selected_service_index -= 1;
+                                            }
+                                        }
+                                        KeyCode::Down => {
+                                            app.selected_service_index = (app.selected_service_index + 1) % 5;
                                         }
                                         KeyCode::Left => {
                                             if app.selected_action_index > 0 {
@@ -443,31 +449,29 @@ async fn main() -> Result<(), io::Error> {
                                             app.selected_action_index = (app.selected_action_index + 1) % 3;
                                         }
                                         KeyCode::Enter => {
-                                            let service = if app.selected_service_index == 0 { "Bitcoin Node" } else { "Tor" };
-                                            let action_name = match app.selected_action_index {
+                                            let (service_label, service_name) = match app.selected_service_index {
+                                                0 => ("Bitcoin Node", "bitcoin"),
+                                                1 => ("Tor", "tor"),
+                                                2 => ("Electrs", "electrs"),
+                                                3 => ("I2P", "i2pd"),
+                                                4 => ("BTC RPC Explorer", "btc-rpc-explorer"),
+                                                _ => ("Unknown", "unknown"),
+                                            };
+                                            let action = match app.selected_action_index {
+                                                0 => "start",
+                                                1 => "stop",
+                                                2 => "restart",
+                                                _ => "unknown",
+                                            };
+                                            let action_label = match app.selected_action_index {
                                                 0 => "Starting",
                                                 1 => "Stopping",
                                                 2 => "Restarting",
                                                 _ => "Unknown",
                                             };
                                             
-                                            app.add_log(format!("{} {}...", action_name, service));
-                                            
-                                            if app.selected_service_index == 0 {
-                                                match app.selected_action_index {
-                                                    0 => { let _ = infra::service::manager::start_node().await; }
-                                                    1 => { let _ = infra::service::manager::stop_node().await; }
-                                                    2 => { let _ = infra::service::manager::restart_node().await; }
-                                                    _ => {}
-                                                }
-                                            } else {
-                                                match app.selected_action_index {
-                                                    0 => { let _ = infra::service::manager::start_tor().await; }
-                                                    1 => { let _ = infra::service::manager::stop_tor().await; }
-                                                    2 => { let _ = infra::service::manager::restart_tor().await; }
-                                                    _ => {}
-                                                }
-                                            }
+                                            app.add_log(format!("{} {}...", action_label, service_label));
+                                            let _ = infra::service::manager::mod_service(service_name, action).await;
                                         }
                                         _ => {}
                                     }
