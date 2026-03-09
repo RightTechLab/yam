@@ -14,18 +14,18 @@ pub fn render_settings(f: &mut Frame, app: &App) {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(50),
-            Constraint::Percentage(25),
+            Constraint::Percentage(10),
+            Constraint::Percentage(80),
+            Constraint::Percentage(10),
         ])
         .split(area);
 
     let popup_area = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(50),
-            Constraint::Percentage(25),
+            Constraint::Percentage(8),
+            Constraint::Percentage(84),
+            Constraint::Percentage(8),
         ])
         .split(popup_layout[1])[1];
 
