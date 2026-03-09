@@ -162,10 +162,26 @@ pub fn render_settings(f: &mut Frame, app: &App) {
             render_row(f, svc_chunks[4], "I2P:", 3, app);
             render_row(f, svc_chunks[5], "BTC Explorer:", 4, app);
 
-            let svc_help = Paragraph::new(" [Up/Down] Select Service  |  [Left/Right] Select Action  |  [Enter]  |  [Esc] Close ")
-                .style(Style::default().fg(Color::DarkGray))
-                .alignment(ratatui::layout::Alignment::Center);
-            f.render_widget(svc_help, svc_chunks[7]);
+            // Spinner animation when a service action is in progress
+            if app.service_action_busy {
+                const SPINNER: &[char] = &['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+                let frame = SPINNER[app.spinner_tick % SPINNER.len()];
+                let spinner_text = Line::from(vec![
+                    Span::styled(format!(" {} ", frame), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                    Span::styled(&app.service_action_label, Style::default().fg(Color::Yellow)),
+                ]);
+                f.render_widget(Paragraph::new(spinner_text).alignment(ratatui::layout::Alignment::Center), svc_chunks[6]);
+
+                let svc_help = Paragraph::new(" Please wait... ")
+                    .style(Style::default().fg(Color::DarkGray))
+                    .alignment(ratatui::layout::Alignment::Center);
+                f.render_widget(svc_help, svc_chunks[7]);
+            } else {
+                let svc_help = Paragraph::new(" [Up/Down] Select Service  |  [Left/Right] Select Action  |  [Enter]  |  [Esc] Close ")
+                    .style(Style::default().fg(Color::DarkGray))
+                    .alignment(ratatui::layout::Alignment::Center);
+                f.render_widget(svc_help, svc_chunks[7]);
+            }
         }
     }
 }

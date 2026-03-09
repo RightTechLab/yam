@@ -60,6 +60,11 @@ pub struct App {
     pub selected_service_index: usize, 
     pub selected_action_index: usize,
     
+    // Service action spinner
+    pub service_action_busy: bool,
+    pub service_action_label: String,
+    pub spinner_tick: usize,
+    
     // Playground state
     pub playground_input: String,
     pub playground_history: Vec<String>,
@@ -115,6 +120,10 @@ impl App {
             
             selected_service_index: 0,
             selected_action_index: 0,
+            
+            service_action_busy: false,
+            service_action_label: String::new(),
+            spinner_tick: 0,
             
             playground_input: String::new(),
             playground_history: vec!["Welcome to Yam Playground!".into(), "Type command and press Enter (e.g. `bitcoin-cli -regtest getblockchaininfo`).".into()],

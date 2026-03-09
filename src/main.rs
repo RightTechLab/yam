@@ -91,6 +91,9 @@ async fn main() -> Result<(), io::Error> {
         app.rpc_pass.clone(),
     )));
 
+    // Shared state for service action results
+    let bg_service_action_result: Arc<Mutex<Option<Result<String, String>>>> = Arc::new(Mutex::new(None));
+
     // Background task to check services periodically
     let b1 = Arc::clone(&bg_bitcoin_status);
     let t1 = Arc::clone(&bg_tor_status);
@@ -289,6 +292,23 @@ async fn main() -> Result<(), io::Error> {
 
         tokio::select! {
             _ = tick_rate.tick() => {
+                // Spinner tick + check for completed service actions
+                if app.service_action_busy {
+                    app.spinner_tick = app.spinner_tick.wrapping_add(1);
+                    if let Some(result) = bg_service_action_result.lock().await.take() {
+                        app.service_action_busy = false;
+                        match result {
+                            Ok(msg) => {
+                                app.add_log(msg);
+                                app.status_message = "Done".into();
+                            }
+                            Err(msg) => {
+                                app.add_log(msg.clone());
+                                app.status_message = msg;
+                            }
+                        }
+                    }
+                }
                 {
                     app.bitcoin_service_status = bg_bitcoin_status.lock().await.clone();
                     app.tor_service_status = bg_tor_status.lock().await.clone();
@@ -530,15 +550,25 @@ async fn main() -> Result<(), io::Error> {
                                                 _ => "Unknown",
                                             };
                                             
-                                            app.add_log(format!("{} {}...", action_label, service_label));
-                                            match infra::service::manager::mod_service(service_name, action).await {
-                                                Ok(()) => {
-                                                    app.add_log(format!("{} {} done.", action_label, service_label));
-                                                }
-                                                Err(e) => {
-                                                    app.add_log(format!("Error: {}", e));
-                                                    app.status_message = format!("Failed to {} {}", action, service_label);
-                                                }
+                                            if !app.service_action_busy {
+                                                app.service_action_busy = true;
+                                                app.spinner_tick = 0;
+                                                app.service_action_label = format!("{} {}...", action_label, service_label);
+                                                app.add_log(app.service_action_label.clone());
+                                                app.status_message = app.service_action_label.clone();
+
+                                                let result_arc = Arc::clone(&bg_service_action_result);
+                                                let svc = service_name.to_string();
+                                                let act = action.to_string();
+                                                let label = service_label.to_string();
+                                                let action_l = action_label.to_string();
+                                                tokio::spawn(async move {
+                                                    let result = match infra::service::manager::mod_service(&svc, &act).await {
+                                                        Ok(()) => Ok(format!("{} {} done.", action_l, label)),
+                                                        Err(e) => Err(format!("Failed: {}", e)),
+                                                    };
+                                                    *result_arc.lock().await = Some(result);
+                                                });
                                             }
                                         }
                                         _ => {}
