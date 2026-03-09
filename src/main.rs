@@ -173,25 +173,23 @@ async fn main() -> Result<(), io::Error> {
     let bg_detected_onion = Arc::new(Mutex::new(None::<String>));
     let bg_detected_electrs_onion = Arc::new(Mutex::new(None::<String>));
     let bg_detected_mempool_onion = Arc::new(Mutex::new(None::<String>));
+    let bg_detected_explorer_onion = Arc::new(Mutex::new(None::<String>));
     let detected_onion = Arc::clone(&bg_detected_onion);
     let detected_electrs = Arc::clone(&bg_detected_electrs_onion);
     let detected_mempool = Arc::clone(&bg_detected_mempool_onion);
+    let detected_explorer = Arc::clone(&bg_detected_explorer_onion);
     tokio::spawn(async move {
-        // Each service may have its own hidden service directory
         let bitcoin_paths = [
-            "/var/lib/tor/bitcoin-service/hostname",
-            "/opt/homebrew/var/lib/tor/bitcoin-service/hostname",
-            "/usr/local/var/lib/tor/bitcoin-service/hostname",
+            "/var/lib/tor/bitcoinrpc/hostname",
         ];
         let electrs_paths = [
-            "/var/lib/tor/electrs-service/hostname",
-            "/var/lib/tor/hidden_service_electrs/hostname",
-            "/opt/homebrew/var/lib/tor/electrs-service/hostname",
+            "/var/lib/tor/electrs/hostname",
         ];
         let mempool_paths = [
-            "/var/lib/tor/mempool-service/hostname",
-            "/var/lib/tor/hidden_service_mempool/hostname",
-            "/opt/homebrew/var/lib/tor/mempool-service/hostname",
+            "/var/lib/tor/mempool/hostname",
+        ];
+        let explorer_paths = [
+            "/var/lib/tor/bitcoinexplorer/hostname",
         ];
 
         async fn read_onion(paths: &[&str]) -> Option<String> {
@@ -217,6 +215,9 @@ async fn main() -> Result<(), io::Error> {
             }
             if let Some(onion) = read_onion(&mempool_paths).await {
                 *detected_mempool.lock().await = Some(onion);
+            }
+            if let Some(onion) = read_onion(&explorer_paths).await {
+                *detected_explorer.lock().await = Some(onion);
             }
         }
     });
@@ -356,10 +357,16 @@ async fn main() -> Result<(), io::Error> {
                                         } else {
                                             app.mempool_onion = app.tor_onion.clone();
                                         }
+                                        if let Some(detected) = bg_detected_explorer_onion.lock().await.clone() {
+                                            app.explorer_onion = detected;
+                                        } else {
+                                            app.explorer_onion = app.tor_onion.clone();
+                                        }
                                     } else {
                                         app.tor_onion = "Disabled".into();
                                         app.electrs_onion = "Disabled".into();
                                         app.mempool_onion = "Disabled".into();
+                                        app.explorer_onion = "Disabled".into();
                                     }
                                 }
                                 "i2p" => {

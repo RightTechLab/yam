@@ -47,6 +47,7 @@ pub struct App {
     pub tor_onion: String,
     pub electrs_onion: String,
     pub mempool_onion: String,
+    pub explorer_onion: String,
     pub i2p_addr: String,
     
     // Settings state
@@ -104,6 +105,7 @@ impl App {
             tor_onion: "Unknown".into(),
             electrs_onion: "Unknown".into(),
             mempool_onion: "Unknown".into(),
+            explorer_onion: "Unknown".into(),
             i2p_addr: "Disabled".into(),
             
             rpc_host: config.rpc_host.clone(),

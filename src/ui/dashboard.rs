@@ -144,7 +144,7 @@ pub fn render_dashboard(f: &mut Frame, app: &App) {
     let local_net_text = vec![
         Line::from(vec![Span::raw("Hostname:      "), Span::styled(&app.node_hostname, Style::default().add_modifier(Modifier::BOLD))]),
         Line::from(vec![Span::raw("Local IP:      "), Span::styled(&app.local_ip, Style::default().add_modifier(Modifier::BOLD))]),
-        Line::from(vec![Span::raw(format!("Bitcoin RPC:   http://{}:18443", app.local_ip))]),
+        Line::from(vec![Span::raw(format!("Bitcoin RPC:   http://{}:8332", app.local_ip))]),
         Line::from(vec![Span::raw(format!("Electrs:       http://{}:50001", app.local_ip))]),
         Line::from(vec![Span::raw(format!("Mempool:       http://{}:8888", app.local_ip))]),
     ];
@@ -154,11 +154,12 @@ pub fn render_dashboard(f: &mut Frame, app: &App) {
 
     // 5. TOR HIDDEN SERVICES
     let has_tor = |s: &str| s != "Disabled" && s != "Unknown" && s != "Determining...";
-    let tor_services_text = if has_tor(&app.tor_onion) || has_tor(&app.electrs_onion) || has_tor(&app.mempool_onion) {
+    let tor_services_text = if has_tor(&app.tor_onion) || has_tor(&app.electrs_onion) || has_tor(&app.mempool_onion) || has_tor(&app.explorer_onion) {
         vec![
-            Line::from(vec![Span::styled(" ● ", Style::default().fg(Color::Green)), Span::raw(format!("{:<15} {}:18443", "Bitcoin RPC", app.tor_onion))]),
+            Line::from(vec![Span::styled(" ● ", Style::default().fg(Color::Green)), Span::raw(format!("{:<15} {}:8332", "Bitcoin RPC", app.tor_onion))]),
             Line::from(vec![Span::styled(" ● ", Style::default().fg(Color::Green)), Span::raw(format!("{:<15} {}:50001", "Electrs", app.electrs_onion))]),
             Line::from(vec![Span::styled(" ● ", Style::default().fg(Color::Green)), Span::raw(format!("{:<15} {}:8888", "Mempool", app.mempool_onion))]),
+            Line::from(vec![Span::styled(" ● ", Style::default().fg(Color::Green)), Span::raw(format!("{:<15} {}:3002", "BTC Explorer", app.explorer_onion))]),
         ]
     } else {
         vec![Line::from("Tor Hidden Services are not active.")]
