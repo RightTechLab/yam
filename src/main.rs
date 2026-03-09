@@ -53,7 +53,8 @@ async fn main() -> Result<(), io::Error> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    let mut app = app::App::new();
+    let config = infra::config::YamConfig::load();
+    let mut app = app::App::new(&config);
     
     let mut tick_rate = time::interval(Duration::from_millis(250)); // Faster tick for better UI responsiveness
     let mut event_stream = crossterm::event::EventStream::new();
@@ -388,6 +389,19 @@ async fn main() -> Result<(), io::Error> {
                                             app.status_message = "Applying RPC Settings...".into();
                                             app.node_status = "Applying...".into();
                                             
+                                            // Save to disk
+                                            let save_config = infra::config::YamConfig {
+                                                rpc_host: app.rpc_host.clone(),
+                                                rpc_user: app.rpc_user.clone(),
+                                                rpc_pass: app.rpc_pass.clone(),
+                                            };
+                                            if let Err(e) = save_config.save() {
+                                                app.add_log(format!("Failed to save config: {}", e));
+                                            } else {
+                                                app.add_log("Config saved to ~/.yam/config.toml".into());
+                                            }
+                                            
+                                            // Update in-memory credentials for background RPC poller
                                             let rpc_cred = Arc::clone(&bg_rpc_credentials);
                                             let host = app.rpc_host.clone();
                                             let user = app.rpc_user.clone();
@@ -471,7 +485,15 @@ async fn main() -> Result<(), io::Error> {
                                             };
                                             
                                             app.add_log(format!("{} {}...", action_label, service_label));
-                                            let _ = infra::service::manager::mod_service(service_name, action).await;
+                                            match infra::service::manager::mod_service(service_name, action).await {
+                                                Ok(()) => {
+                                                    app.add_log(format!("{} {} done.", action_label, service_label));
+                                                }
+                                                Err(e) => {
+                                                    app.add_log(format!("Error: {}", e));
+                                                    app.status_message = format!("Failed to {} {}", action, service_label);
+                                                }
+                                            }
                                         }
                                         _ => {}
                                     }

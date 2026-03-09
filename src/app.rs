@@ -72,7 +72,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(config: &crate::infra::config::YamConfig) -> Self {
         Self {
             mode: AppMode::Dashboard,
             settings_tab: SettingsTab::Rpc,
@@ -102,9 +102,9 @@ impl App {
             tor_onion: "Unknown".into(),
             i2p_addr: "Disabled".into(),
             
-            rpc_host: "http://127.0.0.1:18443".into(),
-            rpc_user: "bitcoin".into(),
-            rpc_pass: "bitcoin".into(),
+            rpc_host: config.rpc_host.clone(),
+            rpc_user: config.rpc_user.clone(),
+            rpc_pass: config.rpc_pass.clone(),
             active_input_index: 0,
             
             selected_service_index: 0,

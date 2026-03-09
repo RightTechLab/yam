@@ -30,22 +30,21 @@ pub mod manager {
     }
 
     pub async fn mod_service(name: &str, action: &str) -> anyhow::Result<()> {
-        tokio::process::Command::new("brew")
+        let output = tokio::process::Command::new("brew")
             .args(&["services", action, name])
             .output()
             .await?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("brew services {} {} failed: {}", action, name, stderr.trim());
+        }
         Ok(())
     }
 
-    // Legacy wrappers for compatibility
-    pub async fn check_status() -> anyhow::Result<NodeStatus> { check_service_status("bitcoin").await }
-    pub async fn check_tor_status() -> anyhow::Result<NodeStatus> { check_service_status("tor").await }
-    pub async fn start_node() -> anyhow::Result<()> { mod_service("bitcoin", "start").await }
-    pub async fn stop_node() -> anyhow::Result<()> { mod_service("bitcoin", "stop").await }
-    pub async fn restart_node() -> anyhow::Result<()> { mod_service("bitcoin", "restart").await }
-    pub async fn start_tor() -> anyhow::Result<()> { mod_service("tor", "start").await }
-    pub async fn stop_tor() -> anyhow::Result<()> { mod_service("tor", "stop").await }
-    pub async fn restart_tor() -> anyhow::Result<()> { mod_service("tor", "restart").await }
+    pub fn sudoers_hint() -> String {
+        "On macOS, brew services does not require sudo.".into()
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -53,7 +52,6 @@ pub mod manager {
     use super::*;
 
     pub async fn check_service_status(name: &str) -> anyhow::Result<NodeStatus> {
-        // bitcoind vs bitcoin etc mapping
         let service_name = match name {
             "bitcoin" => "bitcoind",
             _ => name,
@@ -77,20 +75,36 @@ pub mod manager {
             "bitcoin" => "bitcoind",
             _ => name,
         };
-        tokio::process::Command::new("sudo")
-            .args(&["systemctl", action, service_name])
+        let output = tokio::process::Command::new("sudo")
+            .args(&["-n", "systemctl", action, service_name])
             .output()
             .await?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if stderr.contains("password is required") || stderr.contains("sudo") {
+                anyhow::bail!(
+                    "sudo requires password. Run:\n  sudo visudo -f /etc/sudoers.d/yam\nand add:\n  {} ALL=(ALL) NOPASSWD: /usr/bin/systemctl start {svc}, /usr/bin/systemctl stop {svc}, /usr/bin/systemctl restart {svc}",
+                    std::env::var("USER").unwrap_or_else(|_| "youruser".into()),
+                    svc = service_name
+                );
+            }
+            anyhow::bail!("systemctl {} {} failed: {}", action, service_name, stderr.trim());
+        }
         Ok(())
     }
 
-    // Legacy wrappers for compatibility
-    pub async fn check_status() -> anyhow::Result<NodeStatus> { check_service_status("bitcoin").await }
-    pub async fn check_tor_status() -> anyhow::Result<NodeStatus> { check_service_status("tor").await }
-    pub async fn start_node() -> anyhow::Result<()> { mod_service("bitcoin", "start").await }
-    pub async fn stop_node() -> anyhow::Result<()> { mod_service("bitcoin", "stop").await }
-    pub async fn restart_node() -> anyhow::Result<()> { mod_service("bitcoin", "restart").await }
-    pub async fn start_tor() -> anyhow::Result<()> { mod_service("tor", "start").await }
-    pub async fn stop_tor() -> anyhow::Result<()> { mod_service("tor", "stop").await }
-    pub async fn restart_tor() -> anyhow::Result<()> { mod_service("tor", "restart").await }
+    pub fn sudoers_hint() -> String {
+        let user = std::env::var("USER").unwrap_or_else(|_| "youruser".into());
+        let services = ["bitcoind", "tor", "electrs", "i2pd", "btc-rpc-explorer"];
+        let mut lines = vec![format!("# /etc/sudoers.d/yam — run: sudo visudo -f /etc/sudoers.d/yam")];
+        for svc in &services {
+            lines.push(format!(
+                "{} ALL=(ALL) NOPASSWD: /usr/bin/systemctl start {svc}, /usr/bin/systemctl stop {svc}, /usr/bin/systemctl restart {svc}",
+                user, svc = svc
+            ));
+        }
+        lines.join("\n")
+    }
 }
+
