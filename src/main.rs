@@ -169,28 +169,54 @@ async fn main() -> Result<(), io::Error> {
         }
     });
 
-    // Background task for Tor Hidden Service Hostname (filesystem fallback)
-    let tor_addr_st = Arc::clone(&bg_system_state); 
-    let bg_detected_onion = Arc::new(Mutex::new(None));
+    // Background task for Tor Hidden Service Hostnames (per-service)
+    let bg_detected_onion = Arc::new(Mutex::new(None::<String>));
+    let bg_detected_electrs_onion = Arc::new(Mutex::new(None::<String>));
+    let bg_detected_mempool_onion = Arc::new(Mutex::new(None::<String>));
     let detected_onion = Arc::clone(&bg_detected_onion);
+    let detected_electrs = Arc::clone(&bg_detected_electrs_onion);
+    let detected_mempool = Arc::clone(&bg_detected_mempool_onion);
     tokio::spawn(async move {
-        let paths = [
+        // Each service may have its own hidden service directory
+        let bitcoin_paths = [
+            "/var/lib/tor/bitcoin-service/hostname",
             "/opt/homebrew/var/lib/tor/bitcoin-service/hostname",
             "/usr/local/var/lib/tor/bitcoin-service/hostname",
-            "/var/lib/tor/bitcoin-service/hostname",
         ];
-        let mut interval = time::interval(Duration::from_secs(60));
-        loop {
-            interval.tick().await;
-            for path in &paths {
+        let electrs_paths = [
+            "/var/lib/tor/electrs-service/hostname",
+            "/var/lib/tor/hidden_service_electrs/hostname",
+            "/opt/homebrew/var/lib/tor/electrs-service/hostname",
+        ];
+        let mempool_paths = [
+            "/var/lib/tor/mempool-service/hostname",
+            "/var/lib/tor/hidden_service_mempool/hostname",
+            "/opt/homebrew/var/lib/tor/mempool-service/hostname",
+        ];
+
+        async fn read_onion(paths: &[&str]) -> Option<String> {
+            for path in paths {
                 if let Ok(content) = tokio::fs::read_to_string(path).await {
                     let onion = content.trim().to_string();
                     if !onion.is_empty() {
-                        let mut guard = detected_onion.lock().await;
-                        *guard = Some(onion);
-                        break;
+                        return Some(onion);
                     }
                 }
+            }
+            None
+        }
+
+        let mut interval = time::interval(Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            if let Some(onion) = read_onion(&bitcoin_paths).await {
+                *detected_onion.lock().await = Some(onion);
+            }
+            if let Some(onion) = read_onion(&electrs_paths).await {
+                *detected_electrs.lock().await = Some(onion);
+            }
+            if let Some(onion) = read_onion(&mempool_paths).await {
+                *detected_mempool.lock().await = Some(onion);
             }
         }
     });
@@ -282,10 +308,10 @@ async fn main() -> Result<(), io::Error> {
                 
                 // Fetch Local IP if not already set
                 if app.local_ip == "Determining..." {
-                    if let Ok(output) = std::process::Command::new("sh").arg("-c").arg("ifconfig | grep 'inet ' | grep -v 127.0.0.1 | head -n 1 | awk '{print $2}'").output() {
-                        let ip = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                        if !ip.is_empty() {
-                            app.local_ip = ip;
+                    if let Ok(output) = std::process::Command::new("hostname").arg("-I").output() {
+                        let all_ips = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                        if let Some(first_ip) = all_ips.split_whitespace().next() {
+                            app.local_ip = first_ip.to_string();
                         }
                     }
                 }
@@ -319,8 +345,21 @@ async fn main() -> Result<(), io::Error> {
                                                 app.tor_onion = "Reachable".into();
                                             }
                                         }
+                                        // Per-service onion addresses (fall back to bitcoin onion)
+                                        if let Some(detected) = bg_detected_electrs_onion.lock().await.clone() {
+                                            app.electrs_onion = detected;
+                                        } else {
+                                            app.electrs_onion = app.tor_onion.clone();
+                                        }
+                                        if let Some(detected) = bg_detected_mempool_onion.lock().await.clone() {
+                                            app.mempool_onion = detected;
+                                        } else {
+                                            app.mempool_onion = app.tor_onion.clone();
+                                        }
                                     } else {
                                         app.tor_onion = "Disabled".into();
+                                        app.electrs_onion = "Disabled".into();
+                                        app.mempool_onion = "Disabled".into();
                                     }
                                 }
                                 "i2p" => {

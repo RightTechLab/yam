@@ -153,11 +153,12 @@ pub fn render_dashboard(f: &mut Frame, app: &App) {
     f.render_widget(local_net_block, right_chunks[1]);
 
     // 5. TOR HIDDEN SERVICES
-    let tor_services_text = if app.tor_onion != "Disabled" && app.tor_onion != "Unknown" && app.tor_onion != "Determining..." {
+    let has_tor = |s: &str| s != "Disabled" && s != "Unknown" && s != "Determining...";
+    let tor_services_text = if has_tor(&app.tor_onion) || has_tor(&app.electrs_onion) || has_tor(&app.mempool_onion) {
         vec![
             Line::from(vec![Span::styled(" ● ", Style::default().fg(Color::Green)), Span::raw(format!("{:<15} {}:18443", "Bitcoin RPC", app.tor_onion))]),
-            Line::from(vec![Span::styled(" ● ", Style::default().fg(Color::Green)), Span::raw(format!("{:<15} {}:50001", "Electrs", app.tor_onion))]),
-            Line::from(vec![Span::styled(" ● ", Style::default().fg(Color::Green)), Span::raw(format!("{:<15} {}:8888", "Mempool", app.tor_onion))]),
+            Line::from(vec![Span::styled(" ● ", Style::default().fg(Color::Green)), Span::raw(format!("{:<15} {}:50001", "Electrs", app.electrs_onion))]),
+            Line::from(vec![Span::styled(" ● ", Style::default().fg(Color::Green)), Span::raw(format!("{:<15} {}:8888", "Mempool", app.mempool_onion))]),
         ]
     } else {
         vec![Line::from("Tor Hidden Services are not active.")]
