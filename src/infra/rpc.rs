@@ -16,7 +16,6 @@ impl RpcClient {
         #[cfg(target_os = "linux")]
         let cookie_path: PathBuf = [_home.as_str(), ".bitcoin", ".cookie"].iter().collect();
 
-        // Fallback or explicit override can be implemented here later
         let url = "http://127.0.0.1:18443"; // Default regtest RPC port
 
         let auth = Auth::CookieFile(cookie_path);

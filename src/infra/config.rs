@@ -19,13 +19,11 @@ impl Default for YamConfig {
 }
 
 impl YamConfig {
-    /// Returns the config file path: ~/.yam/config.toml
     pub fn config_path() -> PathBuf {
         let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
         home.join(".yam").join("config.toml")
     }
 
-    /// Load config from ~/.yam/config.toml, falling back to defaults if missing
     pub fn load() -> Self {
         let path = Self::config_path();
         match std::fs::read_to_string(&path) {
@@ -34,7 +32,6 @@ impl YamConfig {
         }
     }
 
-    /// Save config to ~/.yam/config.toml
     pub fn save(&self) -> anyhow::Result<()> {
         let path = Self::config_path();
         if let Some(parent) = path.parent() {

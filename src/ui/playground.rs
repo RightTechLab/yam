@@ -34,9 +34,7 @@ pub fn render_playground(f: &mut Frame, app: &App) {
     // --- Output History ---
     let mut history_lines = Vec::new();
     for row in &app.playground_history {
-        // We split on \n in case a command returns multiline stdout
         for subline in row.lines() {
-            // Apply a simple logic to colorize user input vs shell output
             if subline.starts_with("> ") {
                 history_lines.push(Line::from(Span::styled(
                     subline,
@@ -91,7 +89,6 @@ pub fn render_playground(f: &mut Frame, app: &App) {
     }
 
     // --- Input Box ---
-    // The cursor logic is a bit crude here but works for a single line text input
     let input_text = format!("> {}", app.playground_input);
     let input_block = Paragraph::new(input_text.as_str())
         .style(Style::default().fg(Color::Cyan))
