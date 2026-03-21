@@ -182,20 +182,12 @@ async fn main() -> Result<(), io::Error> {
     let detected_mempool = Arc::clone(&bg_detected_mempool_onion);
     let detected_explorer = Arc::clone(&bg_detected_explorer_onion);
     tokio::spawn(async move {
-        let bitcoin_paths = [
-            "/var/lib/tor/bitcoinrpc/hostname",
-        ];
-        let electrs_paths = [
-            "/var/lib/tor/electrs/hostname",
-        ];
-        let mempool_paths = [
-            "/var/lib/tor/mempool/hostname",
-        ];
-        let explorer_paths = [
-            "/var/lib/tor/bitcoinexplorer/hostname",
-        ];
+        let bitcoin_paths = [config.tor_bitcoin_hostname_path.clone()];
+        let electrs_paths = [config.tor_electrs_hostname_path.clone()];
+        let mempool_paths = [config.tor_mempool_hostname_path.clone()];
+        let explorer_paths = [config.tor_explorer_hostname_path.clone()];
 
-        async fn read_onion(paths: &[&str]) -> Option<String> {
+        async fn read_onion(paths: &[String]) -> Option<String> {
             for path in paths {
                 if let Ok(content) = tokio::fs::read_to_string(path).await {
                     let onion = content.trim().to_string();
@@ -463,6 +455,11 @@ async fn main() -> Result<(), io::Error> {
                                                 rpc_host: app.rpc_host.clone(),
                                                 rpc_user: app.rpc_user.clone(),
                                                 rpc_pass: app.rpc_pass.clone(),
+                                                bitcoin_conf_path: app.conf_path.clone(),
+                                                tor_bitcoin_hostname_path: app.tor_bitcoin_hostname_path.clone(),
+                                                tor_electrs_hostname_path: app.tor_electrs_hostname_path.clone(),
+                                                tor_mempool_hostname_path: app.tor_mempool_hostname_path.clone(),
+                                                tor_explorer_hostname_path: app.tor_explorer_hostname_path.clone(),
                                             };
                                             if let Err(e) = save_config.save() {
                                                 app.add_log(format!("Failed to save config: {}", e));
@@ -480,7 +477,7 @@ async fn main() -> Result<(), io::Error> {
                                                 *guard = (host, user, pass);
                                             });
                                         }
-                                        KeyCode::Backspace => {
+                                        KeyCode::Backspace | KeyCode::Delete => {
                                             match app.active_input_index {
                                                 0 => { app.rpc_host.pop(); }
                                                 1 => { app.rpc_user.pop(); }
@@ -715,7 +712,7 @@ async fn main() -> Result<(), io::Error> {
                         KeyCode::Esc => {
                             app.mode = app::AppMode::Dashboard;
                         }
-                        KeyCode::Backspace => {
+                        KeyCode::Backspace | KeyCode::Delete => {
                             app.playground_input.pop();
                             update_suggestions(&mut app);
                         }
