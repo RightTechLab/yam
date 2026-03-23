@@ -73,6 +73,10 @@ pub struct App {
     pub conf_scroll: usize,
     pub conf_dirty: bool,
     pub conf_path: String,
+    pub tor_bitcoin_hostname_path: String,
+    pub tor_electrs_hostname_path: String,
+    pub tor_mempool_hostname_path: String,
+    pub tor_explorer_hostname_path: String,
     
     // Playground state
     pub playground_input: String,
@@ -139,7 +143,11 @@ impl App {
             conf_cursor_y: 0,
             conf_scroll: 0,
             conf_dirty: false,
-            conf_path: "/home/satoshi/.bitcoin/bitcoin.conf".into(),
+            conf_path: config.bitcoin_conf_path.clone(),
+            tor_bitcoin_hostname_path: config.tor_bitcoin_hostname_path.clone(),
+            tor_electrs_hostname_path: config.tor_electrs_hostname_path.clone(),
+            tor_mempool_hostname_path: config.tor_mempool_hostname_path.clone(),
+            tor_explorer_hostname_path: config.tor_explorer_hostname_path.clone(),
             
             playground_input: String::new(),
             playground_history: vec!["Welcome to Yam Playground!".into(), "Type command and press Enter (e.g. `bitcoin-cli -regtest getblockchaininfo`).".into()],

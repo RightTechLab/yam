@@ -1,0 +1,11 @@
+##Bitcoin
+rpc_host = "http://127.0.0.1:18443"
+rpc_user = "bitcoin"
+rpc_pass = "bitcoin"
+bitcoin_conf_path = "/home/youruser/.bitcoin/bitcoin.conf"
+
+##Tor Hidden Service
+tor_bitcoin_hostname_path = "/var/lib/tor/bitcoinrpc/hostname"
+tor_electrs_hostname_path = "/var/lib/tor/electrs/hostname"
+tor_mempool_hostname_path = "/var/lib/tor/mempool/hostname"
+tor_explorer_hostname_path = "/var/lib/tor/bitcoinexplorer/hostname"
