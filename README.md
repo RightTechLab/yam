@@ -1,5 +1,5 @@
-# yam
-## _Yet Another Monitor for Bitcoin Node_
+# yam - _Yet Another Monitor for Bitcoin Node_
+
 [![Bitcoin-only](https://img.shields.io/badge/bitcoin-only-FF9900?logo=bitcoin)](https://twentyone.world)
 
 
