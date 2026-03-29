@@ -348,34 +348,36 @@ async fn main() -> Result<(), io::Error> {
                             match network.name.as_str() {
                                 "onion" => {
                                     if network.reachable {
+                                        // P2P onion address (from Bitcoin Core's getnetworkinfo local_addresses)
                                         if let Some(la) = ni.local_addresses.iter().find(|la| la.address.contains(".onion")) {
                                             app.tor_onion = la.address.clone();
                                         } else {
-                                            // Fallback to detected onion if available
-                                            if let Some(detected) = bg_detected_onion.lock().await.clone() {
-                                                app.tor_onion = detected;
-                                            } else {
-                                                app.tor_onion = "Reachable".into();
-                                            }
+                                            app.tor_onion = "Reachable".into();
                                         }
-                                        // Per-service onion addresses (fall back to bitcoin onion)
+                                        // RPC hidden service onion addresses (from hostname files)
+                                        if let Some(detected) = bg_detected_onion.lock().await.clone() {
+                                            app.tor_bitcoin_rpc_onion = detected;
+                                        } else {
+                                            app.tor_bitcoin_rpc_onion = "Determining...".into();
+                                        }
                                         if let Some(detected) = bg_detected_electrs_onion.lock().await.clone() {
                                             app.electrs_onion = detected;
                                         } else {
-                                            app.electrs_onion = app.tor_onion.clone();
+                                            app.electrs_onion = "Determining...".into();
                                         }
                                         if let Some(detected) = bg_detected_mempool_onion.lock().await.clone() {
                                             app.mempool_onion = detected;
                                         } else {
-                                            app.mempool_onion = app.tor_onion.clone();
+                                            app.mempool_onion = "Determining...".into();
                                         }
                                         if let Some(detected) = bg_detected_explorer_onion.lock().await.clone() {
                                             app.explorer_onion = detected;
                                         } else {
-                                            app.explorer_onion = app.tor_onion.clone();
+                                            app.explorer_onion = "Determining...".into();
                                         }
                                     } else {
                                         app.tor_onion = "Disabled".into();
+                                        app.tor_bitcoin_rpc_onion = "Disabled".into();
                                         app.electrs_onion = "Disabled".into();
                                         app.mempool_onion = "Disabled".into();
                                         app.explorer_onion = "Disabled".into();
