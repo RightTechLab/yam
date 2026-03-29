@@ -73,43 +73,64 @@ pub fn render_settings(f: &mut Frame, app: &App) {
                     Constraint::Length(3), // Host
                     Constraint::Length(3), // User
                     Constraint::Length(3), // Pass
+                    Constraint::Length(3), // Tor Bitcoin
+                    Constraint::Length(3), // Tor Electrs
+                    Constraint::Length(3), // Tor Mempool
+                    Constraint::Length(3), // Tor Explorer
                     Constraint::Min(1),
                 ])
                 .split(chunks[1]);
 
-            // Host input
-            let host_style = if app.active_input_index == 0 {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(Color::White)
+            let input_style = |idx: usize| -> Style {
+                if app.active_input_index == idx {
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                }
             };
+
+            // Host input
             let host_input = Paragraph::new(app.rpc_host.as_str())
-                .style(host_style)
+                .style(input_style(0))
                 .block(Block::default().title(" RPC Host ").borders(Borders::ALL));
             f.render_widget(host_input, rpc_chunks[0]);
 
             // User input
-            let user_style = if app.active_input_index == 1 {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(Color::White)
-            };
             let user_input = Paragraph::new(app.rpc_user.as_str())
-                .style(user_style)
+                .style(input_style(1))
                 .block(Block::default().title(" RPC User ").borders(Borders::ALL));
             f.render_widget(user_input, rpc_chunks[1]);
 
             // Pass input
-            let pass_style = if app.active_input_index == 2 {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(Color::White)
-            };
             let pass_display = "*".repeat(app.rpc_pass.len());
             let pass_input = Paragraph::new(pass_display.as_str())
-                .style(pass_style)
+                .style(input_style(2))
                 .block(Block::default().title(" RPC Password ").borders(Borders::ALL));
             f.render_widget(pass_input, rpc_chunks[2]);
+
+            // Tor Bitcoin hostname path
+            let tor_btc_input = Paragraph::new(app.tor_bitcoin_hostname_path.as_str())
+                .style(input_style(3))
+                .block(Block::default().title(" Tor Bitcoin Hostname Path ").borders(Borders::ALL));
+            f.render_widget(tor_btc_input, rpc_chunks[3]);
+
+            // Tor Electrs hostname path
+            let tor_electrs_input = Paragraph::new(app.tor_electrs_hostname_path.as_str())
+                .style(input_style(4))
+                .block(Block::default().title(" Tor Electrs Hostname Path ").borders(Borders::ALL));
+            f.render_widget(tor_electrs_input, rpc_chunks[4]);
+
+            // Tor Mempool hostname path
+            let tor_mempool_input = Paragraph::new(app.tor_mempool_hostname_path.as_str())
+                .style(input_style(5))
+                .block(Block::default().title(" Tor Mempool Hostname Path ").borders(Borders::ALL));
+            f.render_widget(tor_mempool_input, rpc_chunks[5]);
+
+            // Tor Explorer hostname path
+            let tor_explorer_input = Paragraph::new(app.tor_explorer_hostname_path.as_str())
+                .style(input_style(6))
+                .block(Block::default().title(" Tor Explorer Hostname Path ").borders(Borders::ALL));
+            f.render_widget(tor_explorer_input, rpc_chunks[6]);
             
             let help = Paragraph::new(" [Tab] Change Focus | [Enter] Apply Settings | [Esc] Close Settings ")
                 .style(Style::default().fg(Color::DarkGray))

@@ -482,6 +482,10 @@ async fn main() -> Result<(), io::Error> {
                                                 0 => { app.rpc_host.pop(); }
                                                 1 => { app.rpc_user.pop(); }
                                                 2 => { app.rpc_pass.pop(); }
+                                                3 => { app.tor_bitcoin_hostname_path.pop(); }
+                                                4 => { app.tor_electrs_hostname_path.pop(); }
+                                                5 => { app.tor_mempool_hostname_path.pop(); }
+                                                6 => { app.tor_explorer_hostname_path.pop(); }
                                                 _ => {}
                                             }
                                         }
@@ -490,15 +494,19 @@ async fn main() -> Result<(), io::Error> {
                                                 0 => { app.rpc_host.push(c); }
                                                 1 => { app.rpc_user.push(c); }
                                                 2 => { app.rpc_pass.push(c); }
+                                                3 => { app.tor_bitcoin_hostname_path.push(c); }
+                                                4 => { app.tor_electrs_hostname_path.push(c); }
+                                                5 => { app.tor_mempool_hostname_path.push(c); }
+                                                6 => { app.tor_explorer_hostname_path.push(c); }
                                                 _ => {}
                                             }
                                         }
                                         KeyCode::Down => {
-                                            app.active_input_index = (app.active_input_index + 1) % 3;
+                                            app.active_input_index = (app.active_input_index + 1) % 7;
                                         }
                                         KeyCode::Up => {
                                             if app.active_input_index == 0 {
-                                                app.active_input_index = 2;
+                                                app.active_input_index = 6;
                                             } else {
                                                 app.active_input_index -= 1;
                                             }
